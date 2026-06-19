@@ -4,6 +4,7 @@ A lightweight, browser-based task management application built with HTML, CSS, a
 
 Originally developed by [Kritika30032002](https://github.com/Kritika30032002/To-Do-List-Application). Enhanced by Group 11, CSE6364 Software Evolution & Maintenance, Multimedia University (TT4L).
 
+This is my GitHub Repository: https://github.com/faizbuu/To-Do-List-Application.git
 ---
 
 ## 🚀 Features
