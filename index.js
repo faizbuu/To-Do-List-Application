@@ -1,3 +1,89 @@
+// ── Phase 2: Enhanced Task Organisation ──────────────────────────────────────
+
+// Temporary subtask list while filling the form
+let formSubtasks = [];
+
+// Add a subtask entry to the form's subtask list
+function addSubtaskToForm() {
+  const input = document.getElementById("subtaskInput");
+  const text = input.value.trim();
+  if (!text) return;
+  formSubtasks.push({ text, completed: false });
+  renderFormSubtasks();
+  input.value = "";
+}
+
+// Render subtask chips inside the form
+function renderFormSubtasks() {
+  const ul = document.getElementById("subtaskFormList");
+  ul.innerHTML = "";
+  formSubtasks.forEach((st, i) => {
+    const li = document.createElement("li");
+    li.className = "subtask-form-item";
+    li.innerHTML = `<span>${st.text}</span>
+      <button type="button" class="btn-close-subtask" onclick="removeFormSubtask(${i})">✕</button>`;
+    ul.appendChild(li);
+  });
+}
+
+// Remove a subtask from the form list
+function removeFormSubtask(index) {
+  formSubtasks.splice(index, 1);
+  renderFormSubtasks();
+}
+
+// Clear the form subtask list (called after task is added)
+function clearFormSubtasks() {
+  formSubtasks = [];
+  document.getElementById("subtaskFormList").innerHTML = "";
+  document.getElementById("subtaskInput").value = "";
+}
+
+// Category filter — highlight active button and show/hide tasks
+function filterByCategory(category) {
+  // Update active button style
+  document.querySelectorAll(".cat-filter-btn").forEach(btn => {
+    btn.classList.toggle("active-cat", btn.textContent.includes(category) || category === "All" && btn.textContent === "All");
+  });
+  const tasks = document.querySelectorAll(".list-group-item");
+  tasks.forEach(task => {
+    const taskCat = task.dataset.category || "Other";
+    task.style.display = (category === "All" || taskCat === category) ? "block" : "none";
+  });
+}
+
+// Toggle a subtask's completed state and save
+function toggleSubtask(checkbox, idx) {
+  const li = checkbox.closest(".subtask-item");
+  if (checkbox.checked) {
+    li.classList.add("subtask-done");
+  } else {
+    li.classList.remove("subtask-done");
+  }
+  // Check if all subtasks are done — unlock or lock the complete button
+  const taskCard = checkbox.closest(".list-group-item");
+  const allChecks = taskCard.querySelectorAll(".subtask-check");
+  const allDone = Array.from(allChecks).every(c => c.checked);
+  const completeBtn = taskCard.querySelector(".complete-btn");
+  if (completeBtn) {
+    completeBtn.disabled = !allDone;
+    completeBtn.title = allDone ? "Mark as complete" : "Complete all subtasks first";
+  }
+  saveTasksToLocalStorage();
+}
+
+// Format date from YYYY-MM-DD to DD-MM-YYYY
+function formatDate(dateStr) {
+  if (!dateStr) return dateStr;
+  const parts = dateStr.trim().split("-");
+  if (parts.length === 3 && parts[0].length === 4) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return dateStr;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Creating instances of document objects
 const taskList = document.getElementById("taskList");
 const dueDateInput = document.getElementById("dueDate");
@@ -24,6 +110,10 @@ const priorityValues = {
   Low: 1,
 };
 
+// ===== FEATURE 1: USER AUTHENTICATION VARIABLES =====
+let isAuthMode = 'login'; // 'login' or 'register'
+let currentUser = null;
+
 // Adding Event Listeners to Document Objects [buttons, text fields, dropdown lists]
 editTaskBtn.addEventListener("click", (e) => {
   handleEditClick(e);
@@ -46,8 +136,201 @@ flatpickr(dueDateInput, {
 function init() {
   const searchBar = document.getElementById("searchBar");
   searchBar.addEventListener("input", handleSearch);
-  loadTasksFromLocalStorage();
+  
+  // ===== FEATURE 1: Check if user is already logged in =====
+  const savedUser = sessionStorage.getItem('currentUser');
+  if (savedUser) {
+    currentUser = savedUser;
+    updateAuthUI();
+    loadTasksFromLocalStorage();
+  } else {
+    loadTasksFromLocalStorage();
+  }
   tasksCheck();
+  
+  // ===== FEATURE 2: Subtask input handler =====
+  const subtaskInput = document.getElementById('subtask-input');
+  if (subtaskInput) {
+    subtaskInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addSubtask();
+      }
+    });
+  }
+  
+  // ===== FEATURE 1: Auth button listeners =====
+  document.getElementById('login-btn').addEventListener('click', showAuthModal);
+  document.getElementById('register-btn').addEventListener('click', function() {
+    isAuthMode = 'register';
+    showAuthModal();
+  });
+  document.getElementById('logout-btn').addEventListener('click', logoutUser);
+  document.getElementById('auth-submit-btn').addEventListener('click', handleAuthSubmit);
+  document.getElementById('auth-cancel').addEventListener('click', hideAuthModal);
+  document.getElementById('auth-toggle-link').addEventListener('click', toggleAuthMode);
+  
+  // ===== FEATURE 4: Statistics button listener =====
+  document.getElementById('statistics-btn').addEventListener('click', showTaskStatistics);
+  document.getElementById('statistics-close').addEventListener('click', function() {
+    document.getElementById('statistics-panel').style.display = 'none';
+  });
+}
+
+// ===== FEATURE 1: USER AUTHENTICATION FUNCTIONS =====
+
+function showAuthModal() {
+  document.getElementById('auth-modal').style.display = 'flex';
+  updateAuthModalUI();
+}
+
+function hideAuthModal() {
+  document.getElementById('auth-modal').style.display = 'none';
+}
+
+function toggleAuthMode(e) {
+  e.preventDefault();
+  isAuthMode = isAuthMode === 'login' ? 'register' : 'login';
+  updateAuthModalUI();
+}
+
+function updateAuthModalUI() {
+  document.getElementById('auth-title').textContent = isAuthMode === 'login' ? 'Login' : 'Register';
+  document.getElementById('auth-submit-btn').textContent = isAuthMode === 'login' ? 'Login' : 'Register';
+  document.getElementById('auth-toggle-text').textContent = isAuthMode === 'login' ? "Don't have an account?" : "Already have an account?";
+  document.getElementById('auth-toggle-link').textContent = isAuthMode === 'login' ? 'Register' : 'Login';
+  document.getElementById('auth-username').value = '';
+  document.getElementById('auth-password').value = '';
+}
+
+function handleAuthSubmit() {
+  const username = document.getElementById('auth-username').value.trim();
+  const password = document.getElementById('auth-password').value.trim();
+  
+  if (!username || !password) {
+    displayErrorMessage('Please enter both username and password!');
+    return;
+  }
+  
+  if (isAuthMode === 'register') {
+    registerUser(username, password);
+  } else {
+    loginUser(username, password);
+  }
+}
+
+function registerUser(username, password) {
+  const users = JSON.parse(localStorage.getItem('todo_users')) || {};
+  if (users[username]) {
+    displayErrorMessage('Username already exists!');
+    return;
+  }
+  users[username] = { password, tasks: [] };
+  localStorage.setItem('todo_users', JSON.stringify(users));
+  displaySuccessMessage('Registration successful! Please login.');
+  isAuthMode = 'login';
+  updateAuthModalUI();
+}
+
+function loginUser(username, password) {
+  const users = JSON.parse(localStorage.getItem('todo_users')) || {};
+  if (!users[username] || users[username].password !== password) {
+    displayErrorMessage('Invalid username or password!');
+    return;
+  }
+  currentUser = username;
+  sessionStorage.setItem('currentUser', username);
+  hideAuthModal();
+  updateAuthUI();
+  loadUserTasks(username);
+  displaySuccessMessage('Login successful! Welcome ' + username + '!');
+}
+
+function logoutUser() {
+  currentUser = null;
+  sessionStorage.removeItem('currentUser');
+  updateAuthUI();
+  // Clear task list
+  while (taskList.firstChild) {
+    taskList.removeChild(taskList.firstChild);
+  }
+  document.getElementById('taskActions').style.display = 'none';
+  displaySuccessMessage('Logged out successfully!');
+}
+
+function updateAuthUI() {
+  const loginBtn = document.getElementById('login-btn');
+  const registerBtn = document.getElementById('register-btn');
+  const logoutBtn = document.getElementById('logout-btn');
+  const userDisplay = document.getElementById('user-display');
+  
+  if (currentUser) {
+    loginBtn.style.display = 'none';
+    registerBtn.style.display = 'none';
+    logoutBtn.style.display = 'inline-block';
+    userDisplay.style.display = 'inline';
+    userDisplay.textContent = '👤 ' + currentUser;
+  } else {
+    loginBtn.style.display = 'inline-block';
+    registerBtn.style.display = 'inline-block';
+    logoutBtn.style.display = 'none';
+    userDisplay.style.display = 'none';
+  }
+}
+
+function loadUserTasks(username) {
+  const users = JSON.parse(localStorage.getItem('todo_users')) || {};
+  const userTasks = users[username]?.tasks || [];
+  localStorage.setItem('tasks', JSON.stringify(userTasks));
+  // Reload tasks from localStorage
+  while (taskList.firstChild) {
+    taskList.removeChild(taskList.firstChild);
+  }
+  loadTasksFromLocalStorage();
+}
+
+// Override saveTasksToLocalStorage to also save to user account
+function saveTasksToLocalStorage() {
+  const tasks = document.querySelectorAll(".list-group-item");
+  const tasksArray = extractTasksData(tasks);
+  storeTasksInLocalStorage(tasksArray);
+  
+  // Also save to user account if logged in
+  if (currentUser) {
+    const users = JSON.parse(localStorage.getItem('todo_users')) || {};
+    if (users[currentUser]) {
+      users[currentUser].tasks = tasksArray;
+      localStorage.setItem('todo_users', JSON.stringify(users));
+    }
+  }
+}
+
+// ===== FEATURE 2: SUBTASK FUNCTIONS =====
+
+function addSubtask() {
+  const input = document.getElementById('subtask-input');
+  const subtaskText = input.value.trim();
+  if (!subtaskText) return;
+  
+  pendingSubtasks.push(subtaskText);
+  input.value = '';
+  renderSubtasks();
+}
+
+function renderSubtasks() {
+  const container = document.getElementById('subtask-list');
+  container.innerHTML = '';
+  pendingSubtasks.forEach((subtask, index) => {
+    const badge = document.createElement('span');
+    badge.className = 'badge badge-info';
+    badge.style.cssText = 'padding:5px 10px; display:flex; align-items:center; gap:5px;';
+    badge.innerHTML = subtask + ' <i class="fas fa-times" style="cursor:pointer; font-size:12px;" data-index="' + index + '"></i>';
+    badge.querySelector('i').addEventListener('click', function() {
+      pendingSubtasks.splice(parseInt(this.dataset.index), 1);
+      renderSubtasks();
+    });
+    container.appendChild(badge);
+  });
 }
 
 //search logic
@@ -56,7 +339,11 @@ function handleSearch() {
   const tasks = document.querySelectorAll(".list-group-item");
   tasks.forEach((task) => {
     const taskTitle = task.childNodes[1].textContent.trim().toLowerCase();
-    if (taskTitle.includes(searchTerm)) {
+    // ===== FEATURE 2: Enhanced search - also search category and subtasks =====
+    const category = task.querySelector("#task-category")?.textContent.toLowerCase() || '';
+    const subtasks = task.querySelector("#task-subtasks")?.textContent.toLowerCase() || '';
+    
+    if (taskTitle.includes(searchTerm) || category.includes(searchTerm) || subtasks.includes(searchTerm)) {
       task.style.display = "block";
     } else {
       task.style.display = "none";
@@ -68,10 +355,14 @@ function handleSearch() {
 function tasksCheck() {
   const tasks = taskList.children;
   if (tasks.length === 0) {
-    tasksHeading.classList.toggle("hidden");
-    searchBar.classList.toggle("hidden");
-    document.querySelector(".clear_btn").style.display = "none";
-    document.querySelector(".dropdown").style.display = "none";
+    tasksHeading.classList.add("hidden");
+    searchBar.classList.add("hidden");
+    const clearBtn = document.querySelector(".clear_btn");
+    const dropdown = document.querySelector(".dropdown");
+    const statsBtn = document.getElementById("statistics-btn");
+    if (clearBtn) clearBtn.style.display = "none";
+    if (dropdown) dropdown.style.display = "none";
+    if (statsBtn) statsBtn.style.display = "none";
   }
 }
 
@@ -80,20 +371,45 @@ function handleEditItem(e) {
   e.preventDefault();
   editTaskBtn.style.display = "inline";
   submitBtn.style.display = "none";
-  const taskTitle = e.target.parentElement.childNodes[1].textContent.trim();
-  console.log(e.target.parentElement.childNodes);
-  const taskDescription = e.target.parentElement.childNodes[4].textContent
-    .trim()
-    .replace("Description:", "");
+
+  const listItem = e.target.closest(".list-group-item");
+  const taskTitle = listItem.childNodes[1].textContent.trim();
+  const descEl = listItem.querySelector("#description-at");
+  const priorityEl = listItem.querySelector("#task-priority");
+  const dueDateEl = listItem.querySelector("#task-dueDate");
+  const categoryEl = listItem.querySelector("#task-category");
+
   document.getElementById("item").value = taskTitle;
-  document.getElementById("description").value = taskDescription;
+  document.getElementById("description").value = descEl
+    ? descEl.textContent.replace("Description:", "").trim() : "";
+  document.getElementById("priority").value = priorityEl
+    ? priorityEl.textContent.trim() : "";
+  // Due date displayed as DD-MM-YYYY, flatpickr needs YYYY-MM-DD
+  const rawDueText = dueDateEl ? dueDateEl.textContent.replace("📅", "").replace("Due:", "").trim() : "";
+  const dueParts = rawDueText.split("-");
+  const dueDateForInput = dueParts.length === 3 && dueParts[2].length === 4
+    ? `${dueParts[2]}-${dueParts[1]}-${dueParts[0]}`
+    : rawDueText;
+  document.getElementById("dueDate").value = dueDateForInput;
+  document.getElementById("category").value = categoryEl
+    ? categoryEl.textContent.trim() : "Other";
+
+  // Load existing subtasks into form
+  formSubtasks = [];
+  listItem.querySelectorAll(".subtask-item").forEach(st => {
+    formSubtasks.push({
+      text: st.querySelector("span").textContent,
+      completed: st.querySelector(".subtask-check").checked
+    });
+  });
+  renderFormSubtasks();
+
   document.getElementById("maintitle").innerText = "Edit your tasks below :";
   editItem = e.target;
   document.documentElement.scrollTop = 0;
   document.getElementById("item").focus();
 }
 
-//actual logic after editing a task and for adding a task   (gets called after edit button click, onChnage text fileds, date, priority)
 function handleEditClick(e) {
   e.preventDefault();
   const itemInput = document.getElementById("item");
@@ -104,48 +420,78 @@ function handleEditClick(e) {
   const editedDueDate = new Date(dueDateInput.value);
   const currentDate = new Date().toISOString().split("T")[0];
   const editedPriority = document.getElementById("priority").value;
+  const editedCategory = document.getElementById("category").value || "Other";
 
-  //check if all fields are filled [basic validation]
-  if (!editedItemText.trim()) {
-    displayErrorMessage("Task not entered");
-    return false;
-  }
+  if (!editedItemText.trim()) { displayErrorMessage("Task not entered"); return false; }
+  if (editedDueDate < new Date(currentDate)) { displayErrorMessage("Due date has already passed !!!"); return false; }
+  if (!editedPriority) { displayErrorMessage("Please select priority"); return false; }
 
-  if (!editedItemText) {
-    displayErrorMessage("Title must not be empty!!!.");
-    return false;
-  }
+  const listItem = editItem.closest(".list-group-item");
 
-  if (editedDueDate < new Date(currentDate)) {
-    displayErrorMessage("Due date has already passed !!!");
-    return false;
-  }
-
-  if (!editedPriority) {
-    displayErrorMessage("Please select priority");
-    return false;
-  }
-  //[basic validation ends]
-
-  //actual manuplation of data
-  const listItem = editItem.parentElement;
+  // Update title
   listItem.childNodes[1].textContent = editedItemText;
-  listItem.childNodes[4].textContent = editedDescriptionText.trim()
-    ? "Description: " + editedDescriptionText
-    : "";
-  listItem.childNodes[7].textContent = editedPriority;
-  if (editedDueDate >= new Date(currentDate)) {
-    listItem.childNodes[6].textContent = `Due Date:${dueDateInput.value}`;
+
+  // Update description
+  const descEl = listItem.querySelector("#description-at");
+  if (descEl) descEl.textContent = editedDescriptionText.trim() ? "Description: " + editedDescriptionText : "";
+
+  // Update due date
+  const dueDateEl = listItem.querySelector("#task-dueDate");
+  if (dueDateEl) dueDateEl.innerHTML = `📅 <strong>Due:</strong> ${formatDate(dueDateInput.value)}`;
+
+  // Update priority with colour
+  const priorityEl = listItem.querySelector("#task-priority");
+  const capitalizedPriority = editedPriority.charAt(0).toUpperCase() + editedPriority.slice(1).toLowerCase();
+  if (priorityEl) {
+    priorityEl.textContent = capitalizedPriority;
+    priorityEl.className = "text-muted task-priority-label priority-" + capitalizedPriority;
   }
-  const capitalizedPriority =
-    editedPriority.charAt(0).toUpperCase() +
-    editedPriority.slice(1).toLowerCase();
+
+  // Update category badge
+  const categoryEl = listItem.querySelector("#task-category");
+  if (categoryEl) categoryEl.textContent = editedCategory;
+  listItem.dataset.category = editedCategory;
+
+  // Update card border colour class
   listItem.className = `list-group-item card shadow mb-4 bg-transparent ${priorityColors[capitalizedPriority]}`;
+
+  // Update subtasks
+  const subtaskContainer = listItem.querySelector("#subtask-list");
+  if (subtaskContainer) {
+    subtaskContainer.innerHTML = "";
+    if (formSubtasks.length > 0) {
+      const subtaskTitle = document.createElement("p");
+      subtaskTitle.className = "subtask-title";
+      subtaskTitle.textContent = "Subtasks:";
+      subtaskContainer.appendChild(subtaskTitle);
+      const subtaskUl = document.createElement("ul");
+      subtaskUl.className = "subtask-ul";
+      formSubtasks.forEach((st, idx) => {
+        const stLi = document.createElement("li");
+        stLi.className = "subtask-item" + (st.completed ? " subtask-done" : "");
+        stLi.innerHTML = `<input type="checkbox" class="subtask-check" ${st.completed ? "checked" : ""} onchange="toggleSubtask(this, ${idx})"> <span>${st.text}</span>`;
+        subtaskUl.appendChild(stLi);
+      });
+      subtaskContainer.appendChild(subtaskUl);
+    }
+  }
+
+  // Re-evaluate complete button lock
+  const completeBtn = listItem.querySelector(".complete-btn");
+  if (completeBtn) {
+    const allChecks = listItem.querySelectorAll(".subtask-check");
+    const allDone = allChecks.length === 0 || Array.from(allChecks).every(c => c.checked);
+    completeBtn.disabled = !allDone;
+    completeBtn.title = allDone ? "Mark as complete" : "Complete all subtasks first";
+  }
+
   displaySuccessMessage("Task edited successfully !!!");
   editItem = null;
   itemInput.value = "";
   descriptionInput.value = "";
   dueDateInput.value = "";
+  document.getElementById("category").value = "";
+  clearFormSubtasks();
   document.getElementById("maintitle").innerText = "Add your tasks below :";
   editTaskBtn.style.display = "none";
   submitBtn.style.display = "inline";
@@ -456,6 +802,8 @@ function addItem(e) {
   const description = document.getElementById("description").value;
   let dueDate = document.getElementById("dueDate").value;
   const priority = document.getElementById("priority").value;
+  const category = document.getElementById("category").value || "Other";
+  const subtasks = [...formSubtasks];
 
   // Check if the due date has already passed
   const currentDate = new Date();
@@ -491,6 +839,7 @@ function addItem(e) {
     document.getElementById("item").value = "";
     document.querySelector(".clear_btn").style.display = "inline";
     document.querySelector(".dropdown").style.display = "inline";
+    document.getElementById("statistics-btn").style.display = "inline-flex";
   }
   const creationDateTime = new Date().toLocaleString();
   createNewTask(
@@ -499,7 +848,9 @@ function addItem(e) {
     dueDate,
     priority,
     description,
-    isDescritionPresent
+    isDescritionPresent,
+    category,
+    subtasks
   );
   saveTasksToLocalStorage();
 
@@ -507,6 +858,8 @@ function addItem(e) {
   document.getElementById("dueDate").value = "";
   document.getElementById("description").value = "";
   document.getElementById("priority").value = "";
+  document.getElementById("category").value = "";
+  clearFormSubtasks();
 }
 
 //check for duplicate tasks
@@ -601,6 +954,7 @@ function markAsComplete(e) {
     li.dataset.originalClassList = li.className;
     li.classList.toggle("task-completed");
   }
+  saveTasksToLocalStorage();
 }
 
 // message box for success
@@ -626,6 +980,15 @@ function saveTasksToLocalStorage() {
   const tasks = document.querySelectorAll(".list-group-item");
   const tasksArray = extractTasksData(tasks);
   storeTasksInLocalStorage(tasksArray);
+  
+  // Also save to user account if logged in
+  if (currentUser) {
+    const users = JSON.parse(localStorage.getItem('todo_users')) || {};
+    if (users[currentUser]) {
+      users[currentUser].tasks = tasksArray;
+      localStorage.setItem('todo_users', JSON.stringify(users));
+    }
+  }
 }
 
 // Function to extract task data from DOM elements
@@ -633,13 +996,17 @@ function saveTasksToLocalStorage() {
 function extractTasksData(tasks) {
   return Array.from(tasks).map((task) => {
     const taskText = task.childNodes[1].textContent;
-    const isCompleted = task.classList.contains("completed");
-    const createdAt = task.querySelector("#created-at").textContent;
+    const isCompleted = task.classList.contains("completed") || task.classList.contains("task-completed");
+    const createdAt = task.querySelector("#created-at")?.textContent || "";
     const description = task.querySelector("#description-at")
       ? task.querySelector("#description-at").textContent
       : "";
-    const dueDate = task.querySelector("#task-dueDate").textContent;
-    const priority = task.querySelector("#task-priority").textContent;
+    const dueDate = task.querySelector("#task-dueDate")?.textContent || "";
+    const priority = task.querySelector("#task-priority")?.textContent || "";
+    // ===== FEATURE 2: Extract category and subtasks =====
+    const category = task.querySelector("#task-category")?.textContent?.replace("Category: ", "") || "";
+    const subtasksEl = task.querySelector("#task-subtasks");
+    const subtasks = subtasksEl ? Array.from(subtasksEl.querySelectorAll('li')).map(li => li.textContent) : [];
 
     return createTaskObject(
       taskText,
@@ -647,7 +1014,9 @@ function extractTasksData(tasks) {
       createdAt,
       dueDate,
       priority,
-      description
+      description,
+      category,
+      subtasks
     );
   });
 }
@@ -659,7 +1028,9 @@ function createTaskObject(
   createdAt,
   dueDate,
   priority,
-  description
+  description,
+  category,
+  subtasks
 ) {
   return {
     text,
@@ -668,6 +1039,8 @@ function createTaskObject(
     dueDate,
     priority,
     description,
+    category: category || '',
+    subtasks: subtasks || [],
   };
 }
 
@@ -686,12 +1059,14 @@ function loadTasksFromLocalStorage() {
   const tasks = getTasksFromLocalStorage();
   const clearButton = document.querySelector(".clear_btn");
   const dropdown = document.querySelector(".dropdown");
+  const statsBtn = document.getElementById("statistics-btn");
 
   if (tasks.length > 0) {
     tasksHeading.classList.remove("hidden");
     searchBar.classList.remove("hidden");
-    clearButton.style.display = "inline";
-    dropdown.style.display = "inline";
+    if (clearButton) clearButton.style.display = "inline";
+    if (dropdown) dropdown.style.display = "inline-block";
+    if (statsBtn) statsBtn.style.display = "inline-flex";
 
     tasks.forEach((task) => {
       displayTask(task);
@@ -701,12 +1076,17 @@ function loadTasksFromLocalStorage() {
 
 // Function to create and display a single task
 function displayTask(task) {
+  const isDescPresent = task.description && task.description.trim() !== "" && task.description !== "Description: ";
+  const rawDue = task.dueDate.includes(": ") ? task.dueDate.split(": ").slice(1).join(": ") : task.dueDate.split(":").slice(1).join(":");
   createNewTask(
     task.text,
-    task.createdAt.slice(8),
-    task.dueDate.split(":")[1],
-    task.priority,
-    task.description.slice(12)
+    task.createdAt ? task.createdAt.slice(8) : new Date().toLocaleString(),
+    rawDue.trim(),
+    task.priority || "Low",
+    task.description ? task.description.replace("Description: ", "") : "",
+    isDescPresent,
+    task.category || "Other",
+    task.subtasks || []
   );
 }
 
@@ -747,6 +1127,8 @@ function clearAllTasks() {
       }
       document.querySelector(".clear_btn").style.display = "none";
       document.querySelector(".dropdown").style.display = "none";
+      const statsBtn = document.getElementById("statistics-btn");
+      if (statsBtn) statsBtn.style.display = "none";
       tasksHeading.classList.add("hidden");
       searchBar.classList.add("hidden");
       localStorage.clear();
@@ -831,6 +1213,21 @@ window.onclick = function (event) {
   }
 };
 
+// ===== FEATURE 4: TASK STATISTICS PANEL =====
+function showTaskStatistics() {
+  const tasks = getTasksFromLocalStorage();
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.completed).length;
+  const pending = total - completed;
+  const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-completed').textContent = completed;
+  document.getElementById('stat-pending').textContent = pending;
+  document.getElementById('stat-rate').textContent = rate + '%';
+  document.getElementById('statistics-panel').style.display = 'flex';
+}
+
 // Function to create a new task
 function createNewTask(
   taskTitle,
@@ -838,32 +1235,42 @@ function createNewTask(
   dueDate,
   priority,
   description,
-  isDescritionPresent
+  isDescritionPresent,
+  category,
+  subtasks
 ) {
+  category = category || "Other";
+  subtasks = subtasks || [];
+
   const li = document.createElement("li");
   li.className = `list-group-item card shadow mb-4 bg-transparent ${priorityColors[priority]}`;
+  li.dataset.category = category;
+
   const completeCheckbox = document.createElement("input");
   completeCheckbox.type = "checkbox";
-  completeCheckbox.className = "form-check-input task-completed";
+  completeCheckbox.className = "form-check-input task-completed complete-btn";
+  completeCheckbox.title = subtasks.length > 0 ? "Complete all subtasks first" : "Mark as complete";
+  if (subtasks.length > 0) completeCheckbox.disabled = true;
   completeCheckbox.addEventListener("change", markAsComplete);
+
   const deleteButton = document.createElement("button");
   deleteButton.type = "button";
   deleteButton.className = "btn btn-outline-danger float-right delete";
-  deleteButton.innerHTML =
-    '<ion-icon name="trash-outline" style="font-size: 20px"></ion-icon>';
+  deleteButton.innerHTML = '<ion-icon name="trash-outline" style="font-size: 20px"></ion-icon>';
   deleteButton.style.paddingTop = "10px";
-  deleteButton.style.PaddingRight = "10px";
 
   const editButton = document.createElement("button");
   editButton.className = "btn btn-outline-secondary btn-sm float-right edit";
-  editButton.innerHTML =
-    '<ion-icon name="create-outline" style="font-size: 20px"></ion-icon>';
+  editButton.innerHTML = '<ion-icon name="create-outline" style="font-size: 20px"></ion-icon>';
   editButton.style.marginRight = "8px";
   editButton.style.paddingTop = "10px";
-  editButton.style.PaddingRight = "10px";
-  editButton.addEventListener("click", function (e) {
-    handleEditItem(e);
-  });
+  editButton.addEventListener("click", function (e) { handleEditItem(e); });
+
+  // Category badge
+  const categoryBadge = document.createElement("span");
+  categoryBadge.className = "category-badge";
+  categoryBadge.id = "task-category";
+  categoryBadge.textContent = category;
 
   const descriptionParagraph = document.createElement("p");
   if (isDescritionPresent === true) {
@@ -871,42 +1278,58 @@ function createNewTask(
     descriptionParagraph.id = "description-at";
     descriptionParagraph.style.fontSize = "15px";
     descriptionParagraph.style.margin = "0 19px";
-    descriptionParagraph.appendChild(
-      document.createTextNode("Description: " + description)
-    );
+    descriptionParagraph.appendChild(document.createTextNode("Description: " + description));
   }
 
   const dateTimeParagraph = document.createElement("p");
-  dateTimeParagraph.className = "text-muted";
+  dateTimeParagraph.className = "task-created-label";
   dateTimeParagraph.id = "created-at";
-  dateTimeParagraph.style.fontSize = "15px";
-  dateTimeParagraph.style.margin = "0 19px";
-  dateTimeParagraph.appendChild(
-    document.createTextNode("Created: " + createdDate)
-  );
+  dateTimeParagraph.textContent = "Created: " + createdDate;
 
   const dueDateParagraph = document.createElement("p");
-  dueDateParagraph.className = "text-muted";
+  dueDateParagraph.className = "task-info-badge duedate-badge";
   dueDateParagraph.id = "task-dueDate";
-  dueDateParagraph.style.fontSize = "15px";
-  dueDateParagraph.style.margin = "0 19px";
-  dueDateParagraph.appendChild(document.createTextNode("Due Date: " + dueDate));
+  dueDateParagraph.innerHTML = `📅 <strong>Due:</strong> ${formatDate(dueDate)}`;
 
   const priorityParagraph = document.createElement("p");
-  priorityParagraph.className = "text-muted";
+  priorityParagraph.className = `text-muted task-priority-label priority-${priority}`;
   priorityParagraph.id = "task-priority";
   priorityParagraph.style.fontSize = "15px";
   priorityParagraph.style.margin = "0 19px";
   priorityParagraph.appendChild(document.createTextNode(priority));
 
+  // Subtasks section
+  const subtaskContainer = document.createElement("div");
+  subtaskContainer.className = "subtask-container";
+  subtaskContainer.id = "subtask-list";
+
+  if (subtasks.length > 0) {
+    const subtaskTitle = document.createElement("p");
+    subtaskTitle.className = "subtask-title";
+    subtaskTitle.textContent = "Subtasks:";
+    subtaskContainer.appendChild(subtaskTitle);
+
+    const subtaskUl = document.createElement("ul");
+    subtaskUl.className = "subtask-ul";
+    subtasks.forEach((st, idx) => {
+      const stLi = document.createElement("li");
+      stLi.className = "subtask-item" + (st.completed ? " subtask-done" : "");
+      stLi.innerHTML = `<input type="checkbox" class="subtask-check" ${st.completed ? "checked" : ""} onchange="toggleSubtask(this, ${idx})"> <span>${st.text}</span>`;
+      subtaskUl.appendChild(stLi);
+    });
+    subtaskContainer.appendChild(subtaskUl);
+  }
+
   li.appendChild(completeCheckbox);
   li.appendChild(document.createTextNode(taskTitle));
   li.appendChild(deleteButton);
   li.appendChild(editButton);
+  li.appendChild(categoryBadge);
   li.appendChild(descriptionParagraph);
-  li.appendChild(dateTimeParagraph);
   li.appendChild(dueDateParagraph);
   li.appendChild(priorityParagraph);
+  li.appendChild(subtaskContainer);
+  li.appendChild(dateTimeParagraph);
 
   taskList.appendChild(li);
   displayTaskDetails(li);
@@ -958,4 +1381,21 @@ function themeSwitcher() {
     }
   }
 }
-themeSwitcher();
+themeSwitcher();function extractTasksData(tasks) {
+  return Array.from(tasks).map((task) => {
+    const taskText = task.childNodes[1].textContent;
+    const isCompleted = task.classList.contains("completed") || task.classList.contains("task-completed");
+    const createdAt = task.querySelector("#created-at")?.textContent || "";
+    const description = task.querySelector("#description-at")
+      ? task.querySelector("#description-at").textContent : "";
+    const dueDate = task.querySelector("#task-dueDate")?.textContent || "";
+    const priority = task.querySelector("#task-priority")?.textContent || "";
+    const category = task.dataset.category || "Other";
+    const subtaskItems = task.querySelectorAll(".subtask-item");
+    const subtasks = Array.from(subtaskItems).map(st => ({
+      text: st.querySelector("span").textContent,
+      completed: st.querySelector(".subtask-check").checked
+    }));
+    return { text: taskText, completed: isCompleted, createdAt, dueDate, priority, description, category, subtasks };
+  });
+}

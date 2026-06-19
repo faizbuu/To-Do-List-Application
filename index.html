@@ -43,10 +43,57 @@
   <!-- Preloader Ends -->
   <div id="lblsuccess" class="message success-message" style="display: none"></div>
   <div id="lblerror" class="message danger-message" style="display: none"></div>
+  
+  <!-- ===== FEATURE 1: USER AUTHENTICATION - Login/Register Modal ===== -->
+  <div id="auth-modal" class="custom-confirm">
+    <div class="confirm-content" style="width: 350px;">
+      <div>
+        <i id="auth-cancel" class="fas fa-times close-button"></i>
+      </div>
+      <h2 id="auth-title">Login</h2>
+      <div style="padding: 10px 0;">
+        <input type="text" id="auth-username" class="form-control mb-2" placeholder="Username" />
+        <input type="password" id="auth-password" class="form-control mb-2" placeholder="Password" />
+        <button id="auth-submit-btn" class="btn btn-outline-success" style="width:100%;">Login</button>
+      </div>
+      <p style="margin-top:10px; font-size:14px;">
+        <span id="auth-toggle-text">Don't have an account?</span>
+        <a href="#" id="auth-toggle-link">Register</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== FEATURE 4: TASK STATISTICS PANEL ===== -->
+  <div id="statistics-panel" class="custom-confirm">
+    <div class="confirm-content" style="width: 400px;">
+      <div>
+        <i id="statistics-close" class="fas fa-times close-button"></i>
+      </div>
+      <h2>Task Statistics</h2>
+      <div style="padding: 15px 0; text-align: left;">
+        <div class="stat-item" style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+          <span>Total Tasks:</span>
+          <span id="stat-total" style="font-weight:bold;">0</span>
+        </div>
+        <div class="stat-item" style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+          <span>Completed Tasks:</span>
+          <span id="stat-completed" style="font-weight:bold; color:green;">0</span>
+        </div>
+        <div class="stat-item" style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+          <span>Pending Tasks:</span>
+          <span id="stat-pending" style="font-weight:bold; color:orange;">0</span>
+        </div>
+        <div class="stat-item" style="display:flex; justify-content:space-between; padding:8px 0;">
+          <span>Completion Rate:</span>
+          <span id="stat-rate" style="font-weight:bold; color:blue;">0%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!--ThemeMode Switcher-->
-  <div>
-    <label class="switch animate__animated  animate__fadeInLeftBig animate__slow  animate__delay-2s"
-      style="margin-left: 30px; margin-top: 30px;">
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 30px;">
+    <label class="switch animate__animated animate__fadeInLeftBig animate__slow animate__delay-2s">
       <span class="sun"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
           <g fill="#ffd43b">
             <circle r="5" cy="12" cx="12"></circle>
@@ -63,8 +110,15 @@
       <input type="checkbox" id="modeToggle" class="mode-toggle input" />
       <span class="slider"></span>
     </label>
-  </div>
 
+    <!-- ===== FEATURE 1: Auth Buttons ===== -->
+    <div id="auth-buttons">
+      <button id="login-btn" class="btn btn-outline-primary btn-sm">Login</button>
+      <button id="register-btn" class="btn btn-outline-success btn-sm">Register</button>
+      <button id="logout-btn" class="btn btn-outline-danger btn-sm" style="display:none;">Logout</button>
+      <span id="user-display" style="margin-left:10px; font-weight:bold; display:none;"></span>
+    </div>
+  </div>
 
   <!-- Github Icon-->
   <div class="github-icon">
@@ -72,7 +126,6 @@
       <i class="fab fa-github"></i>
     </a>
   </div>
-
 
   <!-- Confirmation dialog -->
   <div id="custom-confirm" class="custom-confirm">
@@ -99,7 +152,6 @@
     </div>
   </div>
 
-
   <!-- Confirmation All- dialog -->
   <div id="custom-confirm-all" class="custom-confirm-all">
     <div class="confirm-content-all">
@@ -115,14 +167,14 @@
 
   <!-- all dialogs code ends -->
 
-  <div class 
-  <!-- main cintainer -->
+  <!-- main container -->
   <div class="container">
     <img onclick="topFunction()" src="./scroll_img.svg" id="myBtn">
-    <h1 class="text-center titleText "><span id="element"></span></h1>
-    <p class="text-center animate__animated  animate__flipInX animate__slow  animate__delay-3s">Simply add
+    <!-- ===== FEATURE 3: UI REFINEMENT - Static title instead of animated ===== -->
+    <h1 class="text-center titleText">To-Do List 📝</h1>
+    <p class="text-center animate__animated animate__flipInX animate__slow animate__delay-3s">Simply add
       your tasks here</p>
-    <div class="container main mt-5 w-80 animate__animated  animate__fadeInDown animate__slow animate__delay-2s">
+    <div class="container main mt-5 w-80 animate__animated animate__fadeInDown animate__slow animate__delay-2s">
       <h3 class="text-center mb-4" id="maintitle">Add your tasks below :</h3>
 
       <!-- form components to add new task -->
@@ -132,9 +184,20 @@
         <input class="form-control inputcss" type="text" onkeyup="enableSubmit(this, 'submitBtn')" id="item"
           placeholder="Enter Task Name..." />
 
-        <!-- description fiels -->
+        <!-- description field -->
         <textarea style="overflow-y: scroll; resize: none;width:100%;" class="inputcss mb-3"
           placeholder="Enter Description " id="description"></textarea>
+
+        <!-- category dropdown -->
+        <select id="category">
+          <option value="" selected disabled hidden>Select Category</option>
+          <option value="Work">💼 Work</option>
+          <option value="Personal">🏠 Personal</option>
+          <option value="School">📚 School</option>
+          <option value="Health">💪 Health</option>
+          <option value="Shopping">🛒 Shopping</option>
+          <option value="Other">📌 Other</option>
+        </select>
 
         <!-- priority dropdown list -->
         <select id="priority">
@@ -149,11 +212,22 @@
 
         <!-- date button -->
         <input class="btn btn-dark" id="dueDate" placeholder="Date" />
-        <input type="submit" class="btn btn-outline-success addbtn" id="submitBtn" value="Add" style="width:80px"
-          disabled />
-        <button id="editTask" class="form_btn btn btn-outline-primary " style="display: none;  width:80px;">
-          Edit
-        </button>
+        <!-- subtask section -->
+        <div id="subtaskSection" class="w-100 mt-2">
+          <div class="d-flex align-items-center mb-1" style="gap:8px;">
+            <input type="text" id="subtaskInput" class="form-control inputcss" placeholder="Add a subtask... (Optional)" style="flex:1;" />
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addSubtaskToForm()" style="white-space:nowrap;">+ Add</button>
+          </div>
+          <ul id="subtaskFormList" class="list-unstyled mb-0" style="text-align:left; padding-left:8px;"></ul>
+        </div>
+
+        <!-- Add/Edit buttons centred below subtask -->
+        <div class="w-100 text-center mt-2">
+          <input type="submit" class="btn btn-outline-success addbtn" id="submitBtn" value="Add" style="width:80px" disabled />
+          <button id="editTask" class="form_btn btn btn-outline-primary" style="display: none; width:80px;">
+            Edit
+          </button>
+        </div>
       </form>
 
       <!-- form to display all tasks loaded from localstorage -->
@@ -165,8 +239,19 @@
           <input type="text" id="searchBar" placeholder=" Search tasks..."
             class="form-control w-75 mx-auto mt-3 inputcss">
         </div>
+        <!-- category filter -->
+        <div id="categoryFilter" class="category-filter-bar mb-2">
+          <button class="btn btn-sm cat-filter-btn active-cat" onclick="filterByCategory('All')">All</button>
+          <button class="btn btn-sm cat-filter-btn" onclick="filterByCategory('Work')">💼 Work</button>
+          <button class="btn btn-sm cat-filter-btn" onclick="filterByCategory('Personal')">🏠 Personal</button>
+          <button class="btn btn-sm cat-filter-btn" onclick="filterByCategory('School')">📚 School</button>
+          <button class="btn btn-sm cat-filter-btn" onclick="filterByCategory('Health')">💪 Health</button>
+          <button class="btn btn-sm cat-filter-btn" onclick="filterByCategory('Shopping')">🛒 Shopping</button>
+          <button class="btn btn-sm cat-filter-btn" onclick="filterByCategory('Other')">📌 Other</button>
+        </div>
+
         <!-- sorting elements -->
-        <div class="text-center">
+        <div class="text-center" style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
     <div class="dropdown d-inline-block">
         <button class="btn btn-outline-dark dropbtn d-flex align-items-center ml-2" onclick="myFunction();">
             <ion-icon class="dropbtn" name="funnel-outline" style="font-size: 30px; margin-right: 6px"></ion-icon>
@@ -180,6 +265,10 @@
             <a onclick="sortByDueDate('late');" class="a4">Lately To Do</a>
         </div>
     </div>
+    <!-- ===== FEATURE 4: STATISTICS BUTTON ===== -->
+    <button id="statistics-btn" class="btn btn-outline-info d-flex align-items-center">
+      <ion-icon name="stats-chart-outline" style="font-size: 20px; margin-right: 6px"></ion-icon>Statistics
+    </button>
 </div>
 
 
@@ -224,23 +313,6 @@
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js">
   </script>
-  <script src="https://unpkg.com/typed.js@2.0.16/dist/typed.umd.js"></script>
-  <script>
-    var strings = ['To-Do List 📝', 'Organize tasks, boost daily productivity! 🚀.', 'Achieve Your Goals One Task at a Time 📃', 'Plan, Act, Achieve: Get Started Now! 😉..'];
-
-    function startTypedAnimation() {
-      var typed = new Typed('#element', {
-        strings: strings,
-        typeSpeed: 50,
-        onComplete: function () {
-          typed.reset();
-          strings.push(strings.shift());
-        },
-      });
-    }
-
-    startTypedAnimation(); 
-  </script>
    <script>
   document.addEventListener('DOMContentLoaded', function () {
     var taskList = document.getElementById('taskList');
@@ -275,8 +347,6 @@
   });
 </script>
 
-
-
   <!-- button to start adding tasks by voice -->
   <button id="voice-command-button" title="Voice Command Format:
   - To Add Task: 'Add [task] due [date] priority [priority]'
@@ -295,7 +365,5 @@
   </section>
 
 </body>
-
-
 
 </html>
